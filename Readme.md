@@ -1,0 +1,1 @@
+g++ -O3 -I./lib StressTest.cpp lib/Graph.cpp lib/FileIO.cpp lib/Algorithms.cpp -o StressTest

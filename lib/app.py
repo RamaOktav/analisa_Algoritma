@@ -15,7 +15,7 @@ vertex_options = [15, 100, 500, 1000]
 selected_v = st.sidebar.selectbox("Select Map Size to View (Vertices)", vertex_options)
 
 map_file = f"data/map_{selected_v}.txt"
-csv_file = f"result/stress_test_{selected_v}.csv"
+csv_file = f"stress_test_{selected_v}.csv"
 
 if not os.path.exists(map_file) or not os.path.exists(csv_file):
     st.error(f"Missing data files for V={selected_v}. Ensure {map_file} and {csv_file} are in the folder.")
