@@ -56,7 +56,7 @@ def plot_map(nodes, edges):
 
 if __name__ == "__main__":
     # Point this to whatever text file your C++ program just made
-    filename = "map_1000.txt" 
+    filename = "data/map_15.txt" 
     
     try:
         V, E, nodes, edges = load_cpp_graph(filename)

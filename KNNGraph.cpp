@@ -6,6 +6,8 @@
 #include <set>
 #include <fstream>
 #include <string>
+#include <filesystem>
+#include <random>
 
 // 1. Data Structures
 struct Coordinate {
@@ -27,6 +29,14 @@ struct MapGraph {
 // Helper: Calculate Euclidean Distance (Your Heuristic h(n))
 double getDistance(const Coordinate& a, const Coordinate& b) {
     return std::sqrt(std::pow(a.x - b.x, 2) + std::pow(a.y - b.y, 2));
+}
+
+double randFloat(double start, double end)
+{
+  static std::random_device rd;
+  static std::mt19937 mt(rd());
+  std::uniform_real_distribution<> dist(start, end);
+  return dist(mt);
 }
 
 // 2. The Generator Function
@@ -71,10 +81,14 @@ MapGraph generateConnectedKNNGraph(int V, int K, double mapWidth, double mapHeig
     for (const auto& edgePair : uniqueEdges) {
         int u = edgePair.first;
         int v = edgePair.second;
-        double weight = getDistance(graph.nodes[u], graph.nodes[v]);
+        double baseDistance = getDistance(graph.nodes[u], graph.nodes[v]);
 
-        graph.adjList[u].push_back({v, weight});
-        graph.adjList[v].push_back({u, weight});
+        // 2. Simulate winding roads (Multiply by 1.0 - 2.0)
+        double roadFriction = randFloat(1.0, 2.0);
+        double finalWeight = baseDistance * roadFriction;
+
+        graph.adjList[u].push_back({v, finalWeight});
+        graph.adjList[v].push_back({u, finalWeight});
     }
 
     // Step D: THE COMPONENT BRIDGE (Option 3 - BFS Island Connector)
@@ -138,14 +152,16 @@ MapGraph generateConnectedKNNGraph(int V, int K, double mapWidth, double mapHeig
     return graph;
 }
 
-// Helper: Convert integer ID (0, 1, 26) to String Name (A1, B1, A2)
-std::string getNodeName(int id) {
-    char letter = 'A' + (id % 26);
-    int number = (id / 26) + 1;
-    return std::string(1, letter) + std::to_string(number);
-}
-
 void saveGraphToFile(const MapGraph& graph, const std::string& filename) {
+    std::filesystem::path filePath(filename);
+    std::filesystem::path dir = filePath.parent_path();
+    
+    // If there is a folder in the path, and it doesn't exist, create it!
+    if (!dir.empty() && !std::filesystem::exists(dir)) {
+        std::filesystem::create_directories(dir);
+        std::cout << "Created missing directory: " << dir << "\n";
+    }
+
     std::ofstream outFile(filename);
     
     if (!outFile.is_open()) {
@@ -161,20 +177,20 @@ void saveGraphToFile(const MapGraph& graph, const std::string& filename) {
 
     outFile << graph.V << " " << totalEdges << "\n";
 
-    // Write Coordinates using Alphanumeric Names
+    // Write Coordinates using standard integer IDs
     for (int i = 0; i < graph.V; i++) {
-        outFile << getNodeName(graph.nodes[i].id) << " " 
+        outFile << graph.nodes[i].id << " " 
                 << graph.nodes[i].x << " " 
                 << graph.nodes[i].y << "\n";
     }
 
-    // Write Edges using Alphanumeric Names
+    // Write Edges using standard integer IDs
     for (int u = 0; u < graph.V; u++) {
         for (const Edge& edge : graph.adjList[u]) {
             int v = edge.targetNode;
             if (u < v) { 
-                outFile << getNodeName(u) << " " 
-                        << getNodeName(v) << " " 
+                outFile << u << " " 
+                        << v << " " 
                         << edge.weight << "\n";
             }
         }
@@ -186,22 +202,27 @@ void saveGraphToFile(const MapGraph& graph, const std::string& filename) {
 
 int main() {
     std::cout << "Generating Map (This might take a second for Option 3 bridging)...\n";
-    
-    // Generate a map with 1000 vertices, K=4, on a 500x500 grid
-    MapGraph myMap = generateConnectedKNNGraph(10000, 4, 5000.0, 5000.0);
-    
-    int totalEdges = 0;
-    for(int i = 0; i < myMap.V; i++) {
-        totalEdges += myMap.adjList[i].size();
-    }
-    
-    std::cout << "\nMap Generated Successfully!\n";
-    std::cout << "Vertices: " << myMap.V << "\n";
-    std::cout << "Total Undirected Edges: " << totalEdges / 2 << "\n";
-    std::cout << "Average Degree: " << (double)totalEdges / myMap.V << "\n";
+    std::vector<int> mapSizes = {15, 100, 500, 1000};
+    int K = 2;
+    double xSize = 5000.0f;
+    double ySize = 5000.0f;
 
-    std::string filename = "map_1000.txt";
-    saveGraphToFile(myMap, filename);
+    for(int size : mapSizes){
+        MapGraph myMap = generateConnectedKNNGraph(size, K, xSize, ySize);
+        
+        int totalEdges = 0;
+        for(int i = 0; i < myMap.V; i++) {
+            totalEdges += myMap.adjList[i].size();
+        }
+        
+        std::cout << "\nMap Generated Successfully!\n";
+        std::cout << "Vertices: " << myMap.V << "\n";
+        std::cout << "Total Undirected Edges: " << totalEdges / 2 << "\n";
+        std::cout << "Average Degree: " << (double)totalEdges / myMap.V << "\n";
+    
+        std::string filename = "data/map_" + std::to_string(size) + ".txt";
+        saveGraphToFile(myMap, filename);
+    }
 
     return 0;
 }
