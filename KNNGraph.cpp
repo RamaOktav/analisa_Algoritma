@@ -203,7 +203,7 @@ void saveGraphToFile(const MapGraph& graph, const std::string& filename) {
 int main() {
     std::cout << "Generating Map (This might take a second for Option 3 bridging)...\n";
     std::vector<int> mapSizes = {15, 100, 500, 1000};
-    int K = 2;
+    int K = 3;
     double xSize = 5000.0f;
     double ySize = 5000.0f;
 

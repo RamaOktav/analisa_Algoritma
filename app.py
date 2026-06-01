@@ -6,7 +6,7 @@ import os
 
 # --- PAGE SETUP ---
 st.set_page_config(page_title="Pathfinding Benchmark", layout="wide")
-st.title("Spatial Pathfinding Benchmark")
+st.title("🗺️ Spatial Pathfinding Benchmark")
 st.markdown("Comparing A*, Greedy Best-First, and Exhaustive Search on K-Nearest Neighbor Graphs.")
 
 # --- SIDEBAR CONTROLS ---
@@ -14,11 +14,12 @@ st.sidebar.header("Map Viewer Controls")
 vertex_options = [15, 100, 500, 1000]
 selected_v = st.sidebar.selectbox("Select Map Size to View (Vertices)", vertex_options)
 
+# Pointing to the correct folders based on your C++ architecture
 map_file = f"data/map_{selected_v}.txt"
 csv_file = f"result/stress_test_{selected_v}.csv"
 
 if not os.path.exists(map_file) or not os.path.exists(csv_file):
-    st.error(f"Missing data files for V={selected_v}. Ensure {map_file} and {csv_file} are in the folder.")
+    st.error(f"Missing data files for V={selected_v}. Ensure {map_file} and {csv_file} exist.")
     st.stop()
 
 # --- DATA LOADING FUNCTIONS ---
@@ -45,6 +46,7 @@ def load_map_data(filename):
 with st.spinner("Loading Data..."):
     df_nodes, df_edges = load_map_data(map_file)
     df_bench_single = pd.read_csv(csv_file)
+    # Separate the valid runs from the failures
     df_valid_single = df_bench_single[df_bench_single["TotalDistance"] >= 0]
 
 # ==========================================
@@ -81,7 +83,7 @@ st.plotly_chart(fig_map, use_container_width=True)
 # SECTION 2: SPECIFIC MAP STRESS TEST (BOX PLOTS)
 # ==========================================
 st.markdown("---")
-st.subheader(f"Stress Test Variance (V={selected_v}, 100 Tests)")
+st.subheader(f"Stress Test Variance (V={selected_v})")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -92,29 +94,53 @@ with col2:
     fig_dist_box = px.box(df_valid_single, x="Algorithm", y="TotalDistance", color="Algorithm", points="all", template="plotly_white", title="Path Distance Accuracy")
     st.plotly_chart(fig_dist_box, use_container_width=True)
 
+# ==========================================
+# SECTION 2.5: HANDLING THE -1 VALUES (FAILURES/TIMEOUTS)
+# ==========================================
+st.markdown("---")
+st.subheader("⚠️ Algorithm Reliability (Timeout & Failure Rate)")
+st.markdown("*(Percentage of tests that returned `-1` because they hit the 5,000,000 node limit or couldn't find a path)*")
+
+# Calculate the failure rate natively 
+failure_rates = df_bench_single.groupby("Algorithm").apply(
+    lambda x: (x["TotalDistance"] == -1).sum() / len(x) * 100
+).reset_index(name="FailureRate")
+
+# Plot the Failure Rate as a Bar Chart
+fig_fail = px.bar(
+    failure_rates, 
+    x="Algorithm", 
+    y="FailureRate", 
+    color="Algorithm",
+    text=failure_rates["FailureRate"].apply(lambda x: f"{x:.1f}%"),
+    title=f"Failure / Timeout Rate for V={selected_v}",
+    labels={"FailureRate": "Failure Rate (%)"},
+    template="plotly_white"
+)
+
+fig_fail.update_traces(textposition='outside')
+fig_fail.update_layout(yaxis_range=[0, 100]) # Lock Y-axis to 0-100%
+
+st.plotly_chart(fig_fail, use_container_width=True)
 
 # ==========================================
 # SECTION 3: OVERALL GROWTH TRENDS (LINE GRAPHS)
 # ==========================================
 st.markdown("---")
 st.subheader("📈 Overall Algorithmic Growth (Big-O Trends)")
-st.markdown("*(Averaging the 100 tests across all available map sizes to show mathematical scaling)*")
+st.markdown("*(Averaging the 1000 tests across all available map sizes to show mathematical scaling)*")
 
-# 1. Automatically load all available CSV files in the folder
+# Automatically load all available CSV files in the folder
 all_data = []
 for v in [15, 100, 500, 1000]:
-    file = f"stress_test_{v}.csv"
+    file = f"result/stress_test_{v}.csv"
     if os.path.exists(file):
         temp_df = pd.read_csv(file)
-        temp_df = temp_df[temp_df["TotalDistance"] >= 0] # Remove failed paths
+        temp_df = temp_df[temp_df["TotalDistance"] >= 0] # Remove failed paths for averages
         all_data.append(temp_df)
 
 if all_data:
-    # 2. Combine them all into one massive dataframe
     full_df = pd.concat(all_data)
-    
-    # 3. Calculate the AVERAGE (mean) for each algorithm at each Vertex size
-    # This turns 100 scattered points into 1 clean data point for the line graph
     agg_df = full_df.groupby(["Algorithm", "Vertices"]).mean().reset_index()
 
     col3, col4 = st.columns(2)
@@ -126,7 +152,7 @@ if all_data:
             y="NodesVisited", 
             color="Algorithm", 
             markers=True,
-            log_y=True,  # CRITICAL: Keep log scale so Exhaustive doesn't flatten the others
+            log_y=True,  
             template="plotly_white",
             title="Average Time Complexity Growth"
         )
@@ -142,7 +168,6 @@ if all_data:
             template="plotly_white",
             title="Average Path Distance Growth"
         )
-        # Force the Y-axis to start at 0 so the visual difference is accurate
         fig_line_dist.update_layout(yaxis_rangemode="tozero")
         st.plotly_chart(fig_line_dist, use_container_width=True)
 else:

@@ -17,53 +17,6 @@ struct AStarNode {
     bool operator>(const AStarNode& other) const { return f_cost > other.f_cost; }
 };
 
-// --- GREEDY IMPLEMENTATION ---
-void greedySearchCore(const MapGraph& graph, int start, int target, std::vector<int>& finalPath, double& totalPathDistance, long long& nodesVisited) {
-    std::priority_queue<SearchNode, std::vector<SearchNode>, std::greater<SearchNode>> pq;
-    std::vector<bool> visited(graph.V, false);
-    std::vector<int> cameFrom(graph.V, -1); 
-    nodesVisited = 0;
-    totalPathDistance = -1.0; 
-    finalPath.clear();
-    
-    pq.push({start, getDistance(graph.nodes[start], graph.nodes[target])});
-    visited[start] = true;
-    bool pathFound = false;
-
-    while (!pq.empty()) {
-        int current = pq.top().id;
-        pq.pop();
-        nodesVisited++;
-        if (current == target) { pathFound = true; break; }
-
-        for (const Edge& edge : graph.adjList[current]) {
-            int neighbor = edge.targetNode;
-            if (!visited[neighbor]) {
-                visited[neighbor] = true;
-                cameFrom[neighbor] = current; 
-                pq.push({neighbor, getDistance(graph.nodes[neighbor], graph.nodes[target])});
-            }
-        }
-    }
-
-    if (pathFound) {
-        int curr = target;
-        while (curr != -1) {
-            finalPath.push_back(curr);
-            curr = cameFrom[curr];
-        }
-        std::reverse(finalPath.begin(), finalPath.end());
-        totalPathDistance = 0;
-        for (size_t i = 0; i < finalPath.size() - 1; i++) {
-            int u = finalPath[i];
-            int v = finalPath[i+1];
-            for (const Edge& edge : graph.adjList[u]) {
-                if (edge.targetNode == v) { totalPathDistance += edge.weight; break; }
-            }
-        }
-    }
-}
-
 void runGreedyAndSave(const MapGraph& graph, int start, int target, const std::string& csvFilename) {
     std::cout << "  -> Running Greedy Best-First Search...\n";
     std::vector<int> finalPath;
@@ -124,6 +77,54 @@ void runExhaustiveAndSave(const MapGraph& graph, int start, int target, const st
         appendToCSV(csvFilename, "Exhaustive", graph.V, start, target, nodesVisited, bestDist);
     }
 }
+
+// --- GREEDY IMPLEMENTATION ---
+void greedySearchCore(const MapGraph& graph, int start, int target, std::vector<int>& finalPath, double& totalPathDistance, long long& nodesVisited) {
+    std::priority_queue<SearchNode, std::vector<SearchNode>, std::greater<SearchNode>> pq;
+    std::vector<bool> visited(graph.V, false);
+    std::vector<int> cameFrom(graph.V, -1); 
+    nodesVisited = 0;
+    totalPathDistance = -1.0; 
+    finalPath.clear();
+    
+    pq.push({start, getDistance(graph.nodes[start], graph.nodes[target])});
+    visited[start] = true;
+    bool pathFound = false;
+
+    while (!pq.empty()) {
+        int current = pq.top().id;
+        pq.pop();
+        nodesVisited++;
+        if (current == target) { pathFound = true; break; }
+
+        for (const Edge& edge : graph.adjList[current]) {
+            int neighbor = edge.targetNode;
+            if (!visited[neighbor]) {
+                visited[neighbor] = true;
+                cameFrom[neighbor] = current; 
+                pq.push({neighbor, getDistance(graph.nodes[neighbor], graph.nodes[target])});
+            }
+        }
+    }
+
+    if (pathFound) {
+        int curr = target;
+        while (curr != -1) {
+            finalPath.push_back(curr);
+            curr = cameFrom[curr];
+        }
+        std::reverse(finalPath.begin(), finalPath.end());
+        totalPathDistance = 0;
+        for (size_t i = 0; i < finalPath.size() - 1; i++) {
+            int u = finalPath[i];
+            int v = finalPath[i+1];
+            for (const Edge& edge : graph.adjList[u]) {
+                if (edge.targetNode == v) { totalPathDistance += edge.weight; break; }
+            }
+        }
+    }
+}
+
 
 // --- A* IMPLEMENTATION ---
 void aStarSearchCore(const MapGraph& graph, int start, int target, std::vector<int>& finalPath, double& totalPathDistance, long long& nodesVisited) {
