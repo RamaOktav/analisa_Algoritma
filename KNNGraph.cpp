@@ -204,10 +204,10 @@ void saveGraphToFile(const MapGraph& graph, const std::string& filename) {
 std::vector<int> generateVertexSizes() {
     std::vector<int> vertices;
     int v = 16;
-    while(v <= 50000){
+    while(v <= 2000){
         vertices.push_back(v);
         if(v < 500) v = static_cast<int>(v * 1.2);
-        else v *= 2;
+        else v *= 1.5;
     }
     return vertices;
 }
@@ -230,7 +230,7 @@ int main() {
     std::cout << "Generating Map (This might take a second for Option 3 bridging)...\n";
     // 0 = Debug (Fast, small samples)
     // 1 = Full Stress Test (Aggressive, multi-stage)
-    const int BENCHMARK_MODE = 0; 
+    const int BENCHMARK_MODE = 1; 
 
     std::vector<int> mapSizes;
 

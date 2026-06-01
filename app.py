@@ -3,6 +3,23 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import os
+import math
+
+# --- SYNCHRONIZED GENERATOR FUNCTION ---
+def generate_vertex_sizes(max_v=2000):
+    """
+    Generates vertex sizes exactly matching the C++ benchmark engine configuration.
+    """
+    vertices = []
+    v = 16
+    while v <= max_v:
+        vertices.append(v)
+        if v < 500:
+            # Explicit float-to-int conversion matching C++ static_cast
+            v = math.floor(int(v * 1.2))
+        else:
+            v = math.floor(int(v * 1.5))
+    return vertices
 
 # --- PAGE SETUP ---
 st.set_page_config(page_title="Pathfinding Benchmark", layout="wide")
@@ -11,7 +28,9 @@ st.markdown("Comparing A*, Greedy Best-First, and Exhaustive Search on K-Nearest
 
 # --- SIDEBAR CONTROLS ---
 st.sidebar.header("Map Viewer Controls")
-vertex_options = [15, 100, 500, 1000]
+
+# Dynamically populate the sidebar options up to 50,000 vertices
+vertex_options = generate_vertex_sizes()
 selected_v = st.sidebar.selectbox("Select Map Size to View (Vertices)", vertex_options)
 
 map_file = f"data/map_{selected_v}.txt"
@@ -46,11 +65,10 @@ with st.spinner("Loading Data..."):
     df_nodes, df_edges = load_map_data(map_file)
     df_bench_single = pd.read_csv(csv_file)
     
-    # 1. Keep a pure raw copy so we can still calculate the Failure Rate (-1)
+    # Keep a pure raw copy so we can still calculate the Failure Rate (-1)
     df_raw_single = df_bench_single.copy()
 
-    # 2. DATA IMPUTATION: Replace -1 distances with the perfect A* distance
-    # We grab the A* results, rename the column, and merge it back to fill in the failures.
+    # DATA IMPUTATION: Replace -1 distances with the perfect A* distance
     astar_lookup = df_bench_single[df_bench_single["Algorithm"] == "A_Star"][["StartNode", "TargetNode", "TotalDistance"]]
     astar_lookup = astar_lookup.rename(columns={"TotalDistance": "OptDist"})
     
@@ -110,7 +128,6 @@ st.markdown("---")
 st.subheader("⚠️ Algorithm Reliability (Timeout & Failure Rate)")
 st.markdown("*(Percentage of tests that returned `-1` because they hit the 5,000,000 node limit or couldn't find a path)*")
 
-# Notice we use df_raw_single here to calculate the real failure rate before we overwrote it!
 failure_rates = df_raw_single.groupby("Algorithm").apply(
     lambda x: (x["TotalDistance"] == -1).sum() / len(x) * 100
 ).reset_index(name="FailureRate")
@@ -131,14 +148,15 @@ fig_fail.update_layout(yaxis_range=[0, 100])
 st.plotly_chart(fig_fail, use_container_width=True)
 
 # ==========================================
-# SECTION 3: OVERALL GROWTH TRENDS (LINE GRAPHS)
+# SECTION 3: OVERALL GROWTH TRENDS (DYNAMIC DYNAMIC DYNAMIC)
 # ==========================================
 st.markdown("---")
 st.subheader("📈 Overall Algorithmic Growth (Big-O Trends)")
-st.markdown("*(Averaging the tests across all map sizes. Failed Exhaustive runs are imputed with A* optimal distances for theoretical accuracy)*")
+st.markdown("*(Averaging the tests dynamically across all detected data points available in your results directory)*")
 
 all_data = []
-for v in [15, 100, 500, 1000]:
+# REFACTORED: Loop uses the dynamic generator instead of a hardcoded array
+for v in vertex_options:
     file = f"result/stress_test_{v}.csv"
     if os.path.exists(file):
         temp_df = pd.read_csv(file)
@@ -152,37 +170,46 @@ for v in [15, 100, 500, 1000]:
         temp_df = temp_df.drop(columns=["OptDist"])
         
         all_data.append(temp_df)
-
+        
 if all_data:
     full_df = pd.concat(all_data)
-    agg_df = full_df.groupby(["Algorithm", "Vertices"]).mean().reset_index()
+    
+    # Calculate means grouped by Algorithm and Vertex Size
+    agg_df = full_df.groupby(["Algorithm", "Vertices"])[["NodesVisited", "TotalDistance"]].mean().reset_index()
 
-    col3, col4 = st.columns(2)
+    # --- Graph 1: Time Complexity (Full Width) ---
+    st.markdown("### ⏱️ Performance Metric: Nodes Visited")
+    fig_line_time = px.line(
+        agg_df, 
+        x="Vertices", 
+        y="NodesVisited", 
+        color="Algorithm", 
+        markers=True,
+        log_y=True,  
+        log_x=True, # Keeps geometric spacing equidistant
+        template="plotly_white",
+        title="Average Time Complexity Growth (Log-Log Scale)"
+    )
+    # Give it a bit more breathing room vertically since it's full-width
+    fig_line_time.update_layout(height=500)
+    st.plotly_chart(fig_line_time, use_container_width=True)
 
-    with col3:
-        fig_line_time = px.line(
-            agg_df, 
-            x="Vertices", 
-            y="NodesVisited", 
-            color="Algorithm", 
-            markers=True,
-            log_y=True,  
-            template="plotly_white",
-            title="Average Time Complexity Growth"
-        )
-        st.plotly_chart(fig_line_time, use_container_width=True)
+    st.markdown("---")
 
-    with col4:
-        fig_line_dist = px.line(
-            agg_df, 
-            x="Vertices", 
-            y="TotalDistance", 
-            color="Algorithm", 
-            markers=True,
-            template="plotly_white",
-            title="Average Path Distance Growth"
-        )
-        fig_line_dist.update_layout(yaxis_rangemode="tozero")
-        st.plotly_chart(fig_line_dist, use_container_width=True)
+    # --- Graph 2: Path Accuracy (Full Width) ---
+    st.markdown("### 📏 Accuracy Metric: Total Path Distance")
+    fig_line_dist = px.line(
+        agg_df, 
+        x="Vertices", 
+        y="TotalDistance", 
+        color="Algorithm", 
+        markers=True,
+        log_x=True, 
+        template="plotly_white",
+        title="Average Path Distance Growth (Log-X Scale)"
+    )
+    fig_line_dist.update_layout(height=500, yaxis_rangemode="tozero")
+    st.plotly_chart(fig_line_dist, use_container_width=True)
+
 else:
     st.warning("Could not find multiple stress test CSV files to build the line graphs.")

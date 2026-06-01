@@ -5,10 +5,10 @@
 std::vector<int> generateVertexSizes() {
     std::vector<int> vertices;
     int v = 16;
-    while(v <= 50000){
+    while(v <= 2000){
         vertices.push_back(v);
         if(v < 500) v = static_cast<int>(v * 1.2);
-        else v *= 2;
+        else v *= 1.5;
     }
     return vertices;
 }
