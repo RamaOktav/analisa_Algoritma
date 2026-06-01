@@ -6,7 +6,7 @@ import os
 
 # --- PAGE SETUP ---
 st.set_page_config(page_title="Pathfinding Benchmark", layout="wide")
-st.title("🗺️ Spatial Pathfinding Benchmark")
+st.title("Spatial Pathfinding Benchmark")
 st.markdown("Comparing A*, Greedy Best-First, and Exhaustive Search on K-Nearest Neighbor Graphs.")
 
 # --- SIDEBAR CONTROLS ---
