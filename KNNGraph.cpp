@@ -200,14 +200,55 @@ void saveGraphToFile(const MapGraph& graph, const std::string& filename) {
     std::cout << "Graph securely saved to " << filename << " with Alphanumeric IDs.\n";
 }
 
+
+std::vector<int> generateVertexSizes() {
+    std::vector<int> vertices;
+    int v = 16;
+    while(v <= 50000){
+        vertices.push_back(v);
+        if(v < 500) v = static_cast<int>(v * 1.2);
+        else v *= 2;
+    }
+    return vertices;
+}
+
+double XYsize(int vertices){
+    // We want a density of roughly 1 city per 50x50 area unit
+    // Base: 100 vertices -> 500x500 area
+    double baseSize = 500.0;
+    double baseVertices = 100.0;
+    
+    // The side length grows with the square root of the number of vertices
+    // to maintain a consistent density
+    return baseSize * std::sqrt((double)vertices / baseVertices);
+}
+
 int main() {
+    std::ios_base::sync_with_stdio(false); 
+    std::cin.tie(NULL);
+
     std::cout << "Generating Map (This might take a second for Option 3 bridging)...\n";
-    std::vector<int> mapSizes = {15, 100, 500, 1000};
+    // 0 = Debug (Fast, small samples)
+    // 1 = Full Stress Test (Aggressive, multi-stage)
+    const int BENCHMARK_MODE = 0; 
+
+    std::vector<int> mapSizes;
+
+    if (BENCHMARK_MODE == 0) {
+        mapSizes = {15, 100, 500, 1000};
+    } else {
+        mapSizes = generateVertexSizes();
+    }
+
     int K = 3;
-    double xSize = 5000.0f;
-    double ySize = 5000.0f;
 
     for(int size : mapSizes){
+        std::cout << "Processing V=" << size << "... ";
+        auto start = std::chrono::high_resolution_clock::now();
+        double side = XYsize(size);
+        double xSize = side;
+        double ySize = side;
+
         MapGraph myMap = generateConnectedKNNGraph(size, K, xSize, ySize);
         
         int totalEdges = 0;
@@ -222,6 +263,10 @@ int main() {
     
         std::string filename = "data/map_" + std::to_string(size) + ".txt";
         saveGraphToFile(myMap, filename);
+
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> diff = end - start;
+        std::cout << "Done in " << diff.count() << "s\n";
     }
 
     return 0;

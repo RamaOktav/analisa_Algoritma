@@ -14,7 +14,6 @@ st.sidebar.header("Map Viewer Controls")
 vertex_options = [15, 100, 500, 1000]
 selected_v = st.sidebar.selectbox("Select Map Size to View (Vertices)", vertex_options)
 
-# Pointing to the correct folders based on your C++ architecture
 map_file = f"data/map_{selected_v}.txt"
 csv_file = f"result/stress_test_{selected_v}.csv"
 
@@ -46,8 +45,18 @@ def load_map_data(filename):
 with st.spinner("Loading Data..."):
     df_nodes, df_edges = load_map_data(map_file)
     df_bench_single = pd.read_csv(csv_file)
-    # Separate the valid runs from the failures
-    df_valid_single = df_bench_single[df_bench_single["TotalDistance"] >= 0]
+    
+    # 1. Keep a pure raw copy so we can still calculate the Failure Rate (-1)
+    df_raw_single = df_bench_single.copy()
+
+    # 2. DATA IMPUTATION: Replace -1 distances with the perfect A* distance
+    # We grab the A* results, rename the column, and merge it back to fill in the failures.
+    astar_lookup = df_bench_single[df_bench_single["Algorithm"] == "A_Star"][["StartNode", "TargetNode", "TotalDistance"]]
+    astar_lookup = astar_lookup.rename(columns={"TotalDistance": "OptDist"})
+    
+    df_bench_single = df_bench_single.merge(astar_lookup, on=["StartNode", "TargetNode"], how="left")
+    df_bench_single.loc[df_bench_single["TotalDistance"] < 0, "TotalDistance"] = df_bench_single["OptDist"]
+    df_bench_single = df_bench_single.drop(columns=["OptDist"])
 
 # ==========================================
 # SECTION 1: MAP VISUALIZATION
@@ -87,11 +96,11 @@ st.subheader(f"Stress Test Variance (V={selected_v})")
 
 col1, col2 = st.columns(2)
 with col1:
-    fig_time_box = px.box(df_valid_single, x="Algorithm", y="NodesVisited", color="Algorithm", points="all", log_y=True, template="plotly_white", title="Nodes Visited (Log Scale)")
+    fig_time_box = px.box(df_bench_single, x="Algorithm", y="NodesVisited", color="Algorithm", points="all", log_y=True, template="plotly_white", title="Nodes Visited (Log Scale)")
     st.plotly_chart(fig_time_box, use_container_width=True)
 
 with col2:
-    fig_dist_box = px.box(df_valid_single, x="Algorithm", y="TotalDistance", color="Algorithm", points="all", template="plotly_white", title="Path Distance Accuracy")
+    fig_dist_box = px.box(df_bench_single, x="Algorithm", y="TotalDistance", color="Algorithm", points="all", template="plotly_white", title="Path Distance Accuracy (Imputed)")
     st.plotly_chart(fig_dist_box, use_container_width=True)
 
 # ==========================================
@@ -101,12 +110,11 @@ st.markdown("---")
 st.subheader("⚠️ Algorithm Reliability (Timeout & Failure Rate)")
 st.markdown("*(Percentage of tests that returned `-1` because they hit the 5,000,000 node limit or couldn't find a path)*")
 
-# Calculate the failure rate natively 
-failure_rates = df_bench_single.groupby("Algorithm").apply(
+# Notice we use df_raw_single here to calculate the real failure rate before we overwrote it!
+failure_rates = df_raw_single.groupby("Algorithm").apply(
     lambda x: (x["TotalDistance"] == -1).sum() / len(x) * 100
 ).reset_index(name="FailureRate")
 
-# Plot the Failure Rate as a Bar Chart
 fig_fail = px.bar(
     failure_rates, 
     x="Algorithm", 
@@ -119,8 +127,7 @@ fig_fail = px.bar(
 )
 
 fig_fail.update_traces(textposition='outside')
-fig_fail.update_layout(yaxis_range=[0, 100]) # Lock Y-axis to 0-100%
-
+fig_fail.update_layout(yaxis_range=[0, 100]) 
 st.plotly_chart(fig_fail, use_container_width=True)
 
 # ==========================================
@@ -128,15 +135,22 @@ st.plotly_chart(fig_fail, use_container_width=True)
 # ==========================================
 st.markdown("---")
 st.subheader("📈 Overall Algorithmic Growth (Big-O Trends)")
-st.markdown("*(Averaging the 1000 tests across all available map sizes to show mathematical scaling)*")
+st.markdown("*(Averaging the tests across all map sizes. Failed Exhaustive runs are imputed with A* optimal distances for theoretical accuracy)*")
 
-# Automatically load all available CSV files in the folder
 all_data = []
 for v in [15, 100, 500, 1000]:
     file = f"result/stress_test_{v}.csv"
     if os.path.exists(file):
         temp_df = pd.read_csv(file)
-        temp_df = temp_df[temp_df["TotalDistance"] >= 0] # Remove failed paths for averages
+        
+        # Apply the exact same Data Imputation to the master dataset
+        astar_opt = temp_df[temp_df["Algorithm"] == "A_Star"][["StartNode", "TargetNode", "TotalDistance"]]
+        astar_opt = astar_opt.rename(columns={"TotalDistance": "OptDist"})
+        
+        temp_df = temp_df.merge(astar_opt, on=["StartNode", "TargetNode"], how="left")
+        temp_df.loc[temp_df["TotalDistance"] < 0, "TotalDistance"] = temp_df["OptDist"]
+        temp_df = temp_df.drop(columns=["OptDist"])
+        
         all_data.append(temp_df)
 
 if all_data:

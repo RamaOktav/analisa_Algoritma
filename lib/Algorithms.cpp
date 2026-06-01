@@ -1,3 +1,11 @@
+#define DEBUG_MODE 0  // Change to 1 when debugging, 0 for benchmarking
+
+#if DEBUG_MODE
+    #define LOG(x) std::cout << x
+#else
+    #define LOG(x) // This makes LOG disappear completely
+#endif
+
 #include "Algorithms.h"
 #include "FileIO.h" // Needed to call appendToCSV
 #include <queue>
@@ -17,21 +25,7 @@ struct AStarNode {
     bool operator>(const AStarNode& other) const { return f_cost > other.f_cost; }
 };
 
-void runGreedyAndSave(const MapGraph& graph, int start, int target, const std::string& csvFilename) {
-    std::cout << "  -> Running Greedy Best-First Search...\n";
-    std::vector<int> finalPath;
-    double totalPathDistance = 0.0;
-    long long nodesVisited = 0;
-    greedySearchCore(graph, start, target, finalPath, totalPathDistance, nodesVisited);
 
-    if (finalPath.empty() || totalPathDistance < 0) {
-        std::cout << "     [RESULT] Path Not Found.\n";
-        appendToCSV(csvFilename, "Greedy", graph.V, start, target, nodesVisited, -1.0);
-    } else {
-        std::cout << "     [SUCCESS] Greedy Path Found!\n";
-        appendToCSV(csvFilename, "Greedy", graph.V, start, target, nodesVisited, totalPathDistance);
-    }
-}
 
 // --- EXHAUSTIVE IMPLEMENTATION ---
 void exhaustiveSearchDFS(const MapGraph& graph, int current, int target, std::vector<bool>& visited, std::vector<int>& currentPath, double currentDist, std::vector<int>& bestPath, double& bestDist, long long& nodesVisited, bool& aborted) {
@@ -57,7 +51,7 @@ void exhaustiveSearchDFS(const MapGraph& graph, int current, int target, std::ve
 }
 
 void runExhaustiveAndSave(const MapGraph& graph, int start, int target, const std::string& csvFilename) {
-    std::cout << "  -> Running Exhaustive Search (Brute Force)...\n";
+    LOG("  -> Running Exhaustive Search (Brute Force)...\n");
     std::vector<bool> visited(graph.V, false);
     std::vector<int> currentPath;
     std::vector<int> bestPath;
@@ -70,10 +64,10 @@ void runExhaustiveAndSave(const MapGraph& graph, int start, int target, const st
     exhaustiveSearchDFS(graph, start, target, visited, currentPath, 0.0, bestPath, bestDist, nodesVisited, aborted);
 
     if (aborted || bestDist == std::numeric_limits<double>::infinity()) {
-        std::cout << "     [RESULT] Aborted or No Path.\n";
+        LOG("     [RESULT] Aborted or No Path.\n");
         appendToCSV(csvFilename, "Exhaustive", graph.V, start, target, nodesVisited, -1.0);
     } else {
-        std::cout << "     [SUCCESS] Shortest path perfectly guaranteed!\n";
+        LOG("     [SUCCESS] Shortest path perfectly guaranteed!\n");
         appendToCSV(csvFilename, "Exhaustive", graph.V, start, target, nodesVisited, bestDist);
     }
 }
@@ -125,6 +119,22 @@ void greedySearchCore(const MapGraph& graph, int start, int target, std::vector<
     }
 }
 
+void runGreedyAndSave(const MapGraph& graph, int start, int target, const std::string& csvFilename) {
+    LOG ("  -> Running Greedy Best-First Search...\n");
+    std::vector<int> finalPath;
+    double totalPathDistance = 0.0;
+    long long nodesVisited = 0;
+    greedySearchCore(graph, start, target, finalPath, totalPathDistance, nodesVisited);
+
+    if (finalPath.empty() || totalPathDistance < 0) {
+        LOG ("     [RESULT] Path Not Found.\n");
+        appendToCSV(csvFilename, "Greedy", graph.V, start, target, nodesVisited, -1.0);
+    } else {
+        LOG ("     [SUCCESS] Greedy Path Found!\n");
+        appendToCSV(csvFilename, "Greedy", graph.V, start, target, nodesVisited, totalPathDistance);
+    }
+}
+
 
 // --- A* IMPLEMENTATION ---
 void aStarSearchCore(const MapGraph& graph, int start, int target, std::vector<int>& finalPath, double& totalPathDistance, long long& nodesVisited) {
@@ -168,17 +178,17 @@ void aStarSearchCore(const MapGraph& graph, int start, int target, std::vector<i
 }
 
 void runAStarAndSave(const MapGraph& graph, int start, int target, const std::string& csvFilename) {
-    std::cout << "  -> Running A* Search...\n";
+    LOG("  -> Running A* Search...\n");
     std::vector<int> finalPath;
     double totalPathDistance = 0.0;
     long long nodesVisited = 0;
     aStarSearchCore(graph, start, target, finalPath, totalPathDistance, nodesVisited);
 
     if (finalPath.empty() || totalPathDistance < 0) {
-        std::cout << "     [RESULT] Path Not Found.\n";
+        LOG("     [RESULT] Path Not Found.\n");
         appendToCSV(csvFilename, "A_Star", graph.V, start, target, nodesVisited, -1.0);
     } else {
-        std::cout << "     [SUCCESS] A* Path Found!\n";
+        LOG("     [SUCCESS] A* Path Found!\n");
         appendToCSV(csvFilename, "A_Star", graph.V, start, target, nodesVisited, totalPathDistance);
     }
 }
