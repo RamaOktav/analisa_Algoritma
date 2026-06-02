@@ -12,18 +12,18 @@
 std::vector<int> generateVertexSizes() {
     std::vector<int> vertices;
     int v = 16;
-    while(v <= 2000){
+    while(v <= 10000){
         vertices.push_back(v);
         if(v < 500) v = static_cast<int>(v * 1.2);
-        else v *= 1.5;
+        else v *= 1.3;
     }
     return vertices;
 }
 
 int getSampleRate(int v) {
-    if (v < 100) return 500;   // High resolution for small maps
+    if (v < 300) return 100;  // Medium resolution
     if (v < 1000) return 100;  // Medium resolution
-    if (v < 10000) return 100;  // Low resolution
+    if (v < 10000) return 200;  // Low resolution
     return 5;                  // Minimal samples for massive maps
 }
 
@@ -78,7 +78,7 @@ int main() {
                 std::cout << "\n[Test " << i+1 << "/" << currentSampleRate << "] Start: " << startNode << " -> Target: " << targetNode << "\n";
             }
         
-            if(v_count < 500){
+            if(v_count < 300){
                 runExhaustiveAndSave(myMap, startNode, targetNode, resultFilename);
             }
             runGreedyAndSave(myMap, startNode, targetNode, resultFilename);

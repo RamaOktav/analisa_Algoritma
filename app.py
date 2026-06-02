@@ -6,7 +6,7 @@ import os
 import math
 
 # --- SYNCHRONIZED GENERATOR FUNCTION ---
-def generate_vertex_sizes(max_v=2000):
+def generate_vertex_sizes(max_v=10000):
     """
     Generates vertex sizes exactly matching the C++ benchmark engine configuration.
     """
@@ -18,7 +18,7 @@ def generate_vertex_sizes(max_v=2000):
             # Explicit float-to-int conversion matching C++ static_cast
             v = math.floor(int(v * 1.2))
         else:
-            v = math.floor(int(v * 1.5))
+            v = math.floor(int(v * 1.3))
     return vertices
 
 # --- PAGE SETUP ---
